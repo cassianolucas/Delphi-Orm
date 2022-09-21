@@ -3,14 +3,12 @@ unit uBancoUtils;
 interface
 
 uses
-  {$IFDEF CONDITIONALEXPRESSIONS}
-    {$IF CompilerVersion >= 17.0}
-      System.Generics.Collections, System.Generics.Defaults,
-      System.SysUtils,
-    {$ELSE}
-      Generics.Defaults, SysUtils,
-    {$IFEND}
-  {$ENDIF}
+   {$IF RTLVersion > 21.0}
+    System.Generics.Collections, System.Generics.Defaults,
+    System.SysUtils,
+  {$ELSE}
+    Generics.Collections, Generics.Defaults, SysUtils,
+  {$IFEND}
   uBaseModel, uAtributoBancoModel, Rtti;
 
 type
@@ -47,16 +45,17 @@ type
 implementation
 
 uses
-  {$IFDEF CONDITIONALEXPRESSIONS}
-    {$IF CompilerVersion >= 17.0}
-      System.TypInfo, System.Variants,
-    {$ELSE}
-      TypInfo, Variants,
-    {$IFEND}
-  {$ENDIF}
-  // externalizar apÛs teste
-  Data.SqlExpr, Data.DB,
-  // fim externalizaÁ„o
+  {$IF RTLVersion > 21.0}
+    System.TypInfo, System.Variants,
+    // externalizar ap√≥s teste
+    Data.SqlExpr, Data.DB,
+  // fim externaliza√ß√£o
+  {$ELSE}
+    TypInfo, Variants,
+    // externalizar ap√≥s teste
+    SqlExpr, DB,
+    // fim externaliza√ß√£o
+  {$IFEND}
   uExcecoesBanco;
 
 { TBancoDadosUtil<T> }
@@ -121,7 +120,7 @@ var
   LField: TField;
   LItem: TResultadoItemSelect;
 begin
-  // externalizar para n„o criar dependencia em classe
+  // externalizar para n√£o criar dependencia em classe
 
   Result := TResultadoSelect.Create;
 
