@@ -72,13 +72,11 @@ type
 implementation
 
 uses
-  {$IFDEF CONDITIONALEXPRESSIONS}
-    {$IF CompilerVersion >= 17.0}
+  {$IF RTLVersion > 21.0}
       System.SysUtils;
-    {$ELSE}
+  {$ELSE}
       SysUtils;
-    {$IFEND}
-  {$ENDIF}
+  {$IFEND}
 
 { TAtributoBase }
 
