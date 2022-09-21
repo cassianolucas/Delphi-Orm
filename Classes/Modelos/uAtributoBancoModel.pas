@@ -3,6 +3,7 @@ unit uAtributoBancoModel;
 interface
 
 uses
+  Rtti,
   {$IFDEF CONDITIONALEXPRESSIONS}
     {$IF CompilerVersion >= 17.0}
       System.Generics.Collections;
@@ -63,7 +64,12 @@ type
       function ToString: String; override;
   end;
 
-  TChavePrimaria = class(TAtributoBanco);
+  TChavePrimaria = class(TAtributoBase)
+    private
+      FTipo: TRttiType;
+    public
+      property Tipo: TRttiType read FTipo write FTipo;
+  end;
 
 implementation
 

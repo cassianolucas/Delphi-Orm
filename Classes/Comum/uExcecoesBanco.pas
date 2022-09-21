@@ -17,6 +17,10 @@ type
       constructor Create;
   end;
 
+  TExcecaoValorChavePrimaria = class(Exception)
+    public constructor Create;
+  end;
+
 implementation
 
 { TExcecaoTabela }
@@ -24,6 +28,13 @@ implementation
 constructor TExcecaoTabelaNaoEncontrada.Create;
 begin
   inherited Create('Tabela não encontrada!');
+end;
+
+{ TExcecaoValorChavePrimaria }
+
+constructor TExcecaoValorChavePrimaria.Create;
+begin
+  inherited Create('Valor de chave primaria inválido!');
 end;
 
 end.

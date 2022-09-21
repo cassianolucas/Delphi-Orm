@@ -19,22 +19,27 @@ type
 
   TBancoDadosUtil<T: TBaseModel, constructor> = class
     private
+      FContexto: TRttiContext;
+      FTabela: TTabelaBanco;
+      FColunas: TColunasBanco;
+      FJoins: TJoinsBanco;
+      FChavePrimaria: TChavePrimaria;
+      FColunaChavePrimaria: TColunaBanco;
+
       FConexao: string;
-      LContexto: TRttiContext;
+
 
       constructor Create(const AConexao: String);
 
+      procedure Inicializar(ATipo: TRttiType);
+
       function BuscaTabela(ATipo: TRttiType): TTabelaBanco;
-
-      function BuscarCampos(ATipo: TRttiType): TColunasBanco;
-
-      function BuscarJoins(ATipo: TRttiType): TJoinsBanco;
 
       function ExecutaSql(const ASql: String): TResultadoSelect;
     public
       destructor Destroy; override;
 
-      function BuscarPorId(const AId: Variant): T;
+      function BuscarPorChavePrimaria(const AValor: Variant): T;
 
       class function New(const AConexao: String): TBancoDadosUtil<T>;
   end;
@@ -56,90 +61,31 @@ uses
 
 { TBancoDadosUtil<T> }
 
-function TBancoDadosUtil<T>.BuscarCampos(ATipo: TRttiType): TColunasBanco;
-var
-  LTabela: TTabelaBanco;
-  LPropriedade: TRttiProperty;
-  LAtribuo: TCustomAttribute;
-begin
-  LTabela := BuscaTabela(ATipo);
-
-  if not(Assigned(LTabela)) then
-    raise TExcecaoTabelaNaoEncontrada.Create;
-
-  Result := TColunasBanco.Create;
-
-  for LPropriedade in ATipo.GetProperties do
-  begin
-    if (LPropriedade.Visibility < TMemberVisibility.mvPublic) then
-      Continue;
-
-    for LAtribuo in LPropriedade.GetAttributes do
-    begin
-      if (LAtribuo is TColunaBanco) then
-        Result.Add(TColunaBanco.Create(TColunaBanco(LAtribuo).Nome, LTabela.Nome))
-      else if (LAtribuo is TJoinBanco) then
-        Result.AddRange(BuscarCampos(LPropriedade.PropertyType));
-    end;
-  end;
-end;
-
-function TBancoDadosUtil<T>.BuscarJoins(ATipo: TRttiType): TJoinsBanco;
-var
-  LTabela,
-  LTabelaDestino: TTabelaBanco;
-  LPropriedade: TRttiProperty;
-  LAtribuo: TCustomAttribute;
-begin
-  LTabela := BuscaTabela(ATipo);
-
-  if not(Assigned(LTabela)) then
-    raise TExcecaoTabelaNaoEncontrada.Create;
-
-  Result := TJoinsBanco.Create;
-
-  for LPropriedade in ATipo.GetProperties do
-  begin
-    if (LPropriedade.Visibility < TMemberVisibility.mvPublic) then
-      Continue;
-
-    for LAtribuo in LPropriedade.GetAttributes do
-    begin
-      if (LAtribuo is TJoinBanco) then
-      begin
-        LTabelaDestino := BuscaTabela(LPropriedade.PropertyType);
-
-        if not(Assigned(LTabelaDestino)) then
-          raise TExcecaoTabelaNaoEncontrada.Create;
-
-        Result.Add(TJoinBanco.Create(LTabela.Nome, TJoinBanco(LAtribuo).Origem,
-          LTabelaDestino.Nome, TJoinBanco(LAtribuo).Destino));
-      end;
-    end;
-  end;
-end;
-
-function TBancoDadosUtil<T>.BuscarPorId(const AId: Variant): T;
+function TBancoDadosUtil<T>.BuscarPorChavePrimaria(const AValor: Variant): T;
 const
-  SQL_BUSCAR_ID = 'select %s from %s %s where %s.id = %s';
+  SQL_BUSCAR_ID = 'select %s from %s %s where %s.%s = %s';
 var
-  LTipo: TRttiType;
-  LTabela: TTabelaBanco;
-  LColunas: TColunasBanco;
-  LJoins: TJoinsBanco;
+  LValor: String;
   LSql: String;
   LResultados: TResultadoSelect;
   LResultado: TResultadoItemSelect;
 begin
-  LTipo := LContexto.GetType(TypeInfo(T));
+  case FChavePrimaria.Tipo.TypeKind of
+    tkUString,
+    tkWChar,
+    tkLString,
+    tkWString,
+    tkChar,
+    tkString: LValor := QuotedStr(VarToStr(AValor));
+    else
+      LValor := VarToStr(AValor);
+  end;
 
-  LTabela := BuscaTabela(LTipo);
+  if (LValor = '') then
+    raise TExcecaoValorChavePrimaria.Create;
 
-  LColunas := BuscarCampos(LTipo);
-
-  LJoins := BuscarJoins(LTipo);
-
-  LSql := Format(SQL_BUSCAR_ID, [LColunas.ToString, LTabela.Nome, LJoins.ToString, LTabela.Nome, VarToStr(AId)]);
+  LSql := Format(SQL_BUSCAR_ID, [FColunas.ToString, FTabela.Nome,
+    FJoins.ToString, FTabela.Nome, FColunaChavePrimaria.Nome, LValor]);
 
   LResultados := ExecutaSql(LSql);
 
@@ -205,18 +151,80 @@ begin
   end;
 end;
 
+procedure TBancoDadosUtil<T>.Inicializar(ATipo: TRttiType);
+var
+  LTabela: TTabelaBanco;
+  LTabelaDestino: TTabelaBanco;
+  LPropriedade: TRttiProperty;
+  LAtribuo: TCustomAttribute;
+  LNomePropriedadeChavePrimaria: String;
+begin
+  if not(Assigned(FTabela)) then
+    FTabela := BuscaTabela(ATipo);
+
+  LTabela := BuscaTabela(ATipo);
+
+  if not(Assigned(LTabela)) then
+    raise TExcecaoTabelaNaoEncontrada.Create;
+
+  for LPropriedade in ATipo.GetProperties do
+  begin
+    if (LPropriedade.Visibility < TMemberVisibility.mvPublic) then
+      Continue;
+
+    for LAtribuo in LPropriedade.GetAttributes do
+    begin
+      if (LAtribuo is TColunaBanco) then
+      begin
+        FColunas.Add(TColunaBanco.Create(TColunaBanco(LAtribuo).Nome, LTabela.Nome));
+
+        if (LPropriedade.Name = LNomePropriedadeChavePrimaria) and not(Assigned(FColunaChavePrimaria)) then
+          FColunaChavePrimaria := TColunaBanco.Create(TColunaBanco(LAtribuo).Nome, LTabela.Nome);
+      end
+      else if (LAtribuo is TJoinBanco) then
+      begin
+        LTabelaDestino := BuscaTabela(LPropriedade.PropertyType);
+
+        if not(Assigned(LTabelaDestino)) then
+          raise TExcecaoTabelaNaoEncontrada.Create;
+
+        FJoins.Add(TJoinBanco.Create(LTabela.Nome, TJoinBanco(LAtribuo).Origem,
+          LTabelaDestino.Nome, TJoinBanco(LAtribuo).Destino));
+          
+        Inicializar(LPropriedade.PropertyType);
+      end
+      else if (LAtribuo is TChavePrimaria) then
+      begin        
+        FChavePrimaria := TChavePrimaria(LAtribuo);
+        FChavePrimaria.Tipo := LPropriedade.PropertyType;
+        
+        LNomePropriedadeChavePrimaria := LPropriedade.Name;
+      end;
+    end;
+  end;
+end;
+
 constructor TBancoDadosUtil<T>.Create(const AConexao: String);
+var
+  LTipo: TRttiType;
 begin
   inherited Create;
 
-  LContexto := TRttiContext.Create;
+  FContexto := TRttiContext.Create;
+  FColunas := TColunasBanco.Create;
+  FJoins := TJoinsBanco.Create;
+
+  LTipo := FContexto.GetType(TypeInfo(T));
+  Inicializar(LTipo);
 
   FConexao := AConexao;
 end;
 
 destructor TBancoDadosUtil<T>.Destroy;
 begin
-  LContexto.Free;
+  FContexto.Free;
+  FColunas.Free;
+  FJoins.Free;
 
   inherited;
 end;

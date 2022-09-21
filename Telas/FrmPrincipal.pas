@@ -45,6 +45,7 @@ type
   [TTabelaBanco('pedido')]
   TPedido = class(TBaseModel)
     private
+      FId: Int64;
       FCodigo: String;
       FCliente: TCliente;
       FItens: TPedidoItens;
@@ -53,10 +54,12 @@ type
 
       destructor Destroy; override;
 
+      [TChavePrimaria('pk_id'), TColunaBanco('id')]
+      property Id: Int64 read FId write FId;
+
       [TColunaBanco('codigo')]
       property Codigo: String read FCodigo write FCodigo;
 
-      [TChavePrimaria]
       [TJoinBanco('id', 'idcliente')]
       property Cliente: TCliente read FCliente write FCliente;
 
@@ -76,7 +79,7 @@ uses
 
 procedure TForm1.Button1Click(Sender: TObject);
 begin
-  TBancoDadosUtil<TPedido>.New('').BuscarPorId(1);
+  TBancoDadosUtil<TPedido>.New('').BuscarPorChavePrimaria(1);
 end;
 
 { TPedido }
