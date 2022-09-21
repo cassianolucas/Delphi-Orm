@@ -3,13 +3,11 @@ unit uExcecoesBanco;
 interface
 
 uses
-  {$IFDEF CONDITIONALEXPRESSIONS}
-    {$IF CompilerVersion >= 17.0}
+  {$IF RTLVersion > 21.0}
       System.SysUtils;
     {$ELSE}
       SysUtils;
-    {$IFEND}
-  {$ENDIF}
+  {$IFEND}
 
 type
   TExcecaoTabelaNaoEncontrada = class(Exception)
@@ -27,14 +25,14 @@ implementation
 
 constructor TExcecaoTabelaNaoEncontrada.Create;
 begin
-  inherited Create('Tabela n„o encontrada!');
+  inherited Create('Tabela n√£o encontrada!');
 end;
 
 { TExcecaoValorChavePrimaria }
 
 constructor TExcecaoValorChavePrimaria.Create;
 begin
-  inherited Create('Valor de chave primaria inv·lido!');
+  inherited Create('Valor de chave primaria inv√°lido!');
 end;
 
 end.
