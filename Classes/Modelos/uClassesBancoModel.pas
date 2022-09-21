@@ -4,13 +4,11 @@ interface
 
 uses
   Rtti,
-  {$IFDEF CONDITIONALEXPRESSIONS}
-    {$IF CompilerVersion >= 17.0}
-      System.Generics.Collections;
-    {$ELSE}
-      Generics.Collections;
-    {$IFEND}
-  {$ENDIF}
+  {$IF RTLVersion > 21.0}
+    System.Generics.Collections;
+  {$ELSE}
+    Generics.Collections;
+  {$IFEND}
 
 type
   TBaseModel = class
