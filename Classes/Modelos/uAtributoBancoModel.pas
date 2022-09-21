@@ -4,13 +4,11 @@ interface
 
 uses
   Rtti,
-  {$IFDEF CONDITIONALEXPRESSIONS}
-    {$IF CompilerVersion >= 17.0}
+    {$IF RTLVersion > 21.0}
       System.Generics.Collections;
-    {$ELSE}
+  {$ELSE}
       Generics.Collections;
-    {$IFEND}
-  {$ENDIF}
+  {$IFEND}
 
 type
   TAtributoBanco = class abstract (TCustomAttribute);
