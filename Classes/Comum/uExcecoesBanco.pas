@@ -1,4 +1,4 @@
-unit uExcecoesBanco;
+﻿unit uExcecoesBanco;
 
 interface
 
@@ -16,7 +16,13 @@ type
   end;
 
   TExcecaoValorChavePrimaria = class(Exception)
-    public constructor Create;
+    public
+      constructor Create;
+  end;
+
+  TExcecaoBancoDadosInexistente = class(Exception)
+    public
+      constructor Create;
   end;
 
 implementation
@@ -33,6 +39,13 @@ end;
 constructor TExcecaoValorChavePrimaria.Create;
 begin
   inherited Create('Valor de chave primaria inválido!');
+end;
+
+{ TExcecaoBancoDadosInexistente }
+
+constructor TExcecaoBancoDadosInexistente.Create;
+begin
+  inherited Create('Banco de dados não encontrado!');
 end;
 
 end.

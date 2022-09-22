@@ -104,7 +104,13 @@
         </DCCReference>
         <DCCReference Include="..\Classes\Modelos\uAtributoBancoModel.pas"/>
         <DCCReference Include="..\Classes\Utils\uBancoUtils.pas"/>
-        <DCCReference Include="..\Classes\Modelos\uBaseModel.pas"/>
+        <DCCReference Include="..\Classes\Comum\uExcecoesBanco.pas"/>
+        <DCCReference Include="..\Classes\Modelos\uConexaoBancoModel.pas"/>
+        <DCCReference Include="..\Modulos\uConexaoFiredacModule.pas">
+            <Form>DmConexaoFiredac</Form>
+            <FormType>dfm</FormType>
+            <DesignClass>TDataModule</DesignClass>
+        </DCCReference>
         <DCCReference Include="..\Classes\Modelos\uClassesBancoModel.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>

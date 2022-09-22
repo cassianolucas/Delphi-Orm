@@ -22,16 +22,4 @@ object Form1: TForm1
     TabOrder = 0
     OnClick = Button1Click
   end
-  object SQLQuery: TSQLQuery
-    MaxBlobSize = -1
-    Params = <>
-    SQLConnection = SQLConnection
-    Left = 344
-    Top = 56
-  end
-  object SQLConnection: TSQLConnection
-    LoginPrompt = False
-    Left = 344
-    Top = 112
-  end
 end

@@ -1,20 +1,21 @@
-unit uBancoUtils;
+﻿unit uBancoUtils;
 
 interface
 
 uses
-   {$IF RTLVersion > 21.0}
+  {$IF RTLVersion > 21.0}
+    System.TypInfo,
     System.Generics.Collections, System.Generics.Defaults,
     System.SysUtils,
   {$ELSE}
+    TypInfo,
     Generics.Collections, Generics.Defaults, SysUtils,
   {$IFEND}
-  uBaseModel, uAtributoBancoModel, Rtti;
+  uAtributoBancoModel,
+  uConexaoBancoModel, uClassesBancoModel,
+  Rtti;
 
 type
-  TResultadoItemSelect = TDictionary<String, Variant>;
-  TResultadoSelect = TObjectList<TResultadoItemSelect>;
-
   TBancoDadosUtil<T: TBaseModel, constructor> = class
     private
       FContexto: TRttiContext;
@@ -23,80 +24,36 @@ type
       FJoins: TJoinsBanco;
       FChavePrimaria: TChavePrimaria;
       FColunaChavePrimaria: TColunaBanco;
+      FConexao: TConexaoBanco;
 
-      FConexao: string;
-
-
-      constructor Create(const AConexao: String);
+      constructor Create(const AConexao: TConexaoBanco);
 
       procedure Inicializar(ATipo: TRttiType);
 
       function BuscaTabela(ATipo: TRttiType): TTabelaBanco;
 
-      function ExecutaSql(const ASql: String): TResultadoSelect;
+      function AjustaParametro(const AParametro: Variant): String;
+
+      function CarregaClasse(ATipo: PTypeInfo; AResultadoSql: TResultadoItemBanco): T;
     public
       destructor Destroy; override;
 
-      function BuscarPorChavePrimaria(const AValor: Variant): T;
+      function BuscarPorChavePrimaria(const AParametro: Variant): T;
 
-      class function New(const AConexao: String): TBancoDadosUtil<T>;
+      class function New(const AConexao: TConexaoBanco): TBancoDadosUtil<T>;
   end;
 
 implementation
 
 uses
   {$IF RTLVersion > 21.0}
-    System.TypInfo, System.Variants,
-    // externalizar após teste
-    Data.SqlExpr, Data.DB,
-  // fim externalização
+    System.Variants,
   {$ELSE}
-    TypInfo, Variants,
-    // externalizar após teste
-    SqlExpr, DB,
-    // fim externalização
+    Variants,
   {$IFEND}
   uExcecoesBanco;
 
 { TBancoDadosUtil<T> }
-
-function TBancoDadosUtil<T>.BuscarPorChavePrimaria(const AValor: Variant): T;
-const
-  SQL_BUSCAR_ID = 'select %s from %s %s where %s.%s = %s';
-var
-  LValor: String;
-  LSql: String;
-  LResultados: TResultadoSelect;
-  LResultado: TResultadoItemSelect;
-begin
-  case FChavePrimaria.Tipo.TypeKind of
-    tkUString,
-    tkWChar,
-    tkLString,
-    tkWString,
-    tkChar,
-    tkString: LValor := QuotedStr(VarToStr(AValor));
-    else
-      LValor := VarToStr(AValor);
-  end;
-
-  if (LValor = '') then
-    raise TExcecaoValorChavePrimaria.Create;
-
-  LSql := Format(SQL_BUSCAR_ID, [FColunas.ToString, FTabela.Nome,
-    FJoins.ToString, FTabela.Nome, FColunaChavePrimaria.Nome, LValor]);
-
-  LResultados := ExecutaSql(LSql);
-
-  Result := T.Create;
-
-
-
-//  for LResultado in LResultados do
-//  begin
-//
-//  end;
-end;
 
 function TBancoDadosUtil<T>.BuscaTabela(ATipo: TRttiType): TTabelaBanco;
 var
@@ -109,44 +66,6 @@ begin
 
     if Assigned(Result) then
       Exit;
-  end;
-end;
-
-function TBancoDadosUtil<T>.ExecutaSql(
-  const ASql: String): TResultadoSelect;
-var
-  LConexao: TSQLConnection;
-  LTemp: TSQLQuery;
-  LField: TField;
-  LItem: TResultadoItemSelect;
-begin
-  // externalizar para não criar dependencia em classe
-
-  Result := TResultadoSelect.Create;
-
-  LConexao := TSQLConnection.Create(nil);
-  LConexao.ConnectionName := FConexao;
-
-  LTemp := TSQLQuery.Create(nil);
-  LTemp.SQLConnection := LConexao;
-  try
-    LTemp.SQL.Text := ASql;
-    LTemp.Open;
-
-    while not(LTemp.Eof) do
-    begin
-      LItem := TResultadoItemSelect.Create;
-
-      for LField in LTemp.Fields do
-        LItem.Add(LField.FieldName, LField.Value);
-
-      Result.Add(LItem);
-
-      LTemp.Next;
-    end;
-  finally
-    LTemp.Free;
-    LConexao.Free;
   end;
 end;
 
@@ -203,7 +122,7 @@ begin
   end;
 end;
 
-constructor TBancoDadosUtil<T>.Create(const AConexao: String);
+constructor TBancoDadosUtil<T>.Create(const AConexao: TConexaoBanco);
 var
   LTipo: TRttiType;
 begin
@@ -224,14 +143,92 @@ begin
   FContexto.Free;
   FColunas.Free;
   FJoins.Free;
+  FChavePrimaria.Free;
+  FColunaChavePrimaria.Free;
+  FConexao.Free;
 
   inherited;
 end;
 
+function TBancoDadosUtil<T>.AjustaParametro(const AParametro: Variant): String;
+begin
+  case FChavePrimaria.Tipo.TypeKind of
+    tkUString,
+    tkWChar,
+    tkLString,
+    tkWString,
+    tkChar,
+    tkString: Result := QuotedStr(VarToStr(AParametro));
+    else
+      Result := VarToStr(AParametro);
+  end;
+end;
+
+function TBancoDadosUtil<T>.CarregaClasse(ATipo: PTypeInfo;
+  AResultadoSql: TResultadoItemBanco): T;
+var
+  LTipoRetorno: PTypeInfo;
+  LTipo: TRttiType;
+  LTabela: TTabelaBanco;
+  LPropriedade: TRttiProperty;
+  LAtributo: TCustomAttribute;
+  LValor: Variant;
+begin
+  Result := T.Create;
+
+  LTipoRetorno := TypeInfo(T);
+
+  LTipo := FContexto.GetType(LTipoRetorno.TypeData.ClassType);
+
+  LTabela := BuscaTabela(LTipo);
+
+  for LPropriedade in LTipo.GetProperties do
+  begin
+    for LAtributo in LPropriedade.GetAttributes do
+    begin
+      if (LAtributo is TColunaBanco) then
+      begin
+        AResultadoSql.TryGetValue(UpperCase(TColunaBanco(LAtributo).Nome), LValor);
+
+        LPropriedade.SetValue(LTipo, TValue.FromVariant(LValor));
+      end
+      else if (LAtributo is TJoinBanco) then
+      begin
+        // recursivo
+
+      end;
+    end;
+  end;
+end;
+
 class function TBancoDadosUtil<T>.New(
-  const AConexao: String): TBancoDadosUtil<T>;
+  const AConexao: TConexaoBanco): TBancoDadosUtil<T>;
 begin
   Result := TBancoDadosUtil<T>.Create(AConexao);
+end;
+
+function TBancoDadosUtil<T>.BuscarPorChavePrimaria(const AParametro: Variant): T;
+const
+  SQL_BUSCAR_ID = 'select %s from %s %s where %s.%s = %s';
+var
+  LParametro: String;
+  LSql: String;
+  LTipo: PTypeInfo;
+begin
+  LParametro := AjustaParametro(AParametro);
+
+  if (LParametro = '') then
+    raise TExcecaoValorChavePrimaria.Create;
+
+  LSql := Format(SQL_BUSCAR_ID, [FColunas.ToString, FTabela.Nome,
+    FJoins.ToString, FTabela.Nome, FColunaChavePrimaria.Nome, LParametro]);
+
+  // verificar se classe tem método create sem parametros
+  // quando não houver retornar exceção
+
+  LTipo := TypeInfo(T);
+
+  Result := CarregaClasse(LTipo, FConexao.ExecutaSql(LSql));
 end;
 
 end.

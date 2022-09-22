@@ -6,7 +6,7 @@ uses
   {$IF RTLVersion > 21.0}
     Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
     Vcl.Controls, Vcl.Forms, Vcl.Dialogs, System.Generics.Collections,
-    uAtributoBancoModel, Vcl.StdCtrls, uBaseModel, FireDAC.Stan.Intf,
+    Vcl.StdCtrls, FireDAC.Stan.Intf,
     FireDAC.Stan.Option, FireDAC.Stan.Param, FireDAC.Stan.Error, FireDAC.DatS,
     FireDAC.Phys.Intf, FireDAC.DApt.Intf, FireDAC.Stan.Async, FireDAC.DApt,
     Data.DB, FireDAC.Comp.DataSet, FireDAC.Comp.Client, Data.FMTBcd, Data.SqlExpr,
@@ -16,13 +16,12 @@ uses
     StdCtrls,
     DB, FMTBcd, WideStrings, SqlExpr,
   {$IFEND}
-  uBaseModel, uAtributoBancoModel;
+  uClassesBancoModel,
+  uAtributoBancoModel;
 
 type
   TForm1 = class(TForm)
     Button1: TButton;
-    SQLQuery: TSQLQuery;
-    SQLConnection: TSQLConnection;
     procedure Button1Click(Sender: TObject);
   private
     { Private declarations }
@@ -30,17 +29,17 @@ type
     { Public declarations }
   end;
 
-  [TTabelaBanco('cliente')]
+  [TTabelaBanco('Employees')]
   TCliente = class(TBaseModel)
-    private
-      FCodigo: String;
-      FNome: String;
-    public
-      [TColunaBanco('codigo')]
-      property Codigo: String read FCodigo write FCodigo;
+  private
+    FEmployeId: Integer;
+    FFirstName: String;
+  public
+    [TChavePrimaria('pk_id'), TColunaBanco('EmployeeID')]
+    property EmployeId: Integer read FEmployeId write FEmployeId;
 
-      [TColunaBanco('nome')]
-      property Nome: String read FNome write FNome;
+    [TColunaBanco('FirstName')]
+    property FirstName: String read FFirstName write FFirstName;
   end;
 
   TPedidoItem = class(TBaseModel)
@@ -50,29 +49,25 @@ type
 
   TPedidoItens = class(TList<TPedidoItem>);
 
-  [TTabelaBanco('pedido')]
+  [TTabelaBanco('Orders')]
   TPedido = class(TBaseModel)
-    private
-      FId: Int64;
-      FCodigo: String;
-      FCliente: TCliente;
-      FItens: TPedidoItens;
-    public
-      constructor Create;
+  private
+    FOrderId: Integer;
+    FShipName: String;
+    FCliente: TCliente;
+  public
+    constructor Create;
 
-      destructor Destroy; override;
+    destructor Destroy; override;
 
-      [TChavePrimaria('pk_id'), TColunaBanco('id')]
-      property Id: Int64 read FId write FId;
+    [TChavePrimaria('pk_id'), TColunaBanco('OrderID')]
+    property OrderId: Integer read FOrderId write FOrderId;
 
-      [TColunaBanco('codigo')]
-      property Codigo: String read FCodigo write FCodigo;
+    [TColunaBanco('ShipName')]
+    property ShipName: String read FShipName write FShipName;
 
-      [TJoinBanco('id', 'idcliente')]
-      property Cliente: TCliente read FCliente write FCliente;
-
-      property Itens: TPedidoItens read FItens write FItens;
-
+    [TJoinBanco('EmployeeID', 'EmployeeID')]
+    property Cliente: TCliente read FCliente write FCliente;
   end;
 
 var
@@ -81,13 +76,17 @@ var
 implementation
 
 uses
-  uBancoUtils;
+  uBancoUtils, uConexaoFiredacModule;
 
 {$R *.dfm}
 
 procedure TForm1.Button1Click(Sender: TObject);
+var
+  LPedido: TPedido;
 begin
-  TBancoDadosUtil<TPedido>.New('').BuscarPorChavePrimaria(1);
+  LPedido := TBancoDadosUtil<TPedido>.New(TDmConexaoFiredac.New).BuscarPorChavePrimaria(10248);
+
+  ShowMessage(IntToStr(LPedido.OrderId));
 end;
 
 { TPedido }
@@ -95,13 +94,13 @@ end;
 constructor TPedido.Create;
 begin
   FCliente := TCliente.Create;
-  Itens := TPedidoItens.Create;
+//  Itens := TPedidoItens.Create;
 end;
 
 destructor TPedido.Destroy;
 begin
   FCliente.Free;
-  Itens.Free;
+//  Itens.Free;
 
   inherited;
 end;
